@@ -2,6 +2,9 @@
 
 A modern web application to download YouTube videos, YouTube playlists, and Facebook videos in various formats and qualities. Built with Django and yt-dlp.
 
+<img width="702" height="419" alt="image" src="https://github.com/user-attachments/assets/8ea99703-a852-4692-a86e-9d18cf5b0fd1" />
+
+
 ## Features
 - Download single YouTube videos, YouTube playlists (as zip), and Facebook videos
 - Choose video quality (720p, 1080p, 1440p, 4K) and format (MP4, MP3, WebM)
