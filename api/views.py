@@ -1,3 +1,18 @@
+from django.shortcuts import render
+import os
+import tempfile
+import uuid
+from django.http import JsonResponse, FileResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+import yt_dlp
+import json
+import warnings
+
+DOWNLOAD_DIR = tempfile.gettempdir()
+
+warnings.filterwarnings("ignore", message=".*development server.*")
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def download_playlist(request):
@@ -115,22 +130,34 @@ def download_video(request):
             "noplaylist": True,
         }
 
+
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 filename = ydl.prepare_filename(info)
                 final_file = os.path.splitext(filename)[0] + f".{format_type}"
         except yt_dlp.utils.DownloadError as e:
-            # Try fallback to 'best' if requested format is not available
-            fallback_opts = ydl_opts.copy()
-            fallback_opts["format"] = "best"
+            # If requested format is not available, return available formats
             try:
-                with yt_dlp.YoutubeDL(fallback_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    filename = ydl.prepare_filename(info)
-                    final_file = os.path.splitext(filename)[0] + f".{format_type}"
+                with yt_dlp.YoutubeDL({"outtmpl": output_template, "noplaylist": True}) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    formats = info.get("formats", [])
+                    available = [
+                        {
+                            "format_id": f.get("format_id"),
+                            "ext": f.get("ext"),
+                            "height": f.get("height"),
+                            "format_note": f.get("format_note"),
+                            "filesize": f.get("filesize")
+                        }
+                        for f in formats if f.get("ext") in ["mp4", "webm", "mp3"]
+                    ]
+                return JsonResponse({
+                    "error": "Requested format is not available.",
+                    "available_formats": available
+                }, status=400)
             except Exception as e2:
-                return JsonResponse({"error": f"Requested format is not available. Try a different quality or format. Details: {str(e2)}"}, status=400)
+                return JsonResponse({"error": f"Requested format is not available. Could not fetch available formats. Details: {str(e2)}"}, status=400)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
