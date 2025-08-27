@@ -183,7 +183,15 @@
 
         <form id="downloadForm">
             <div class="input-group">
-                <label for="videoUrl">YouTube Video URL</label>
+                <label for="downloadType">Download Type</label>
+                <select id="downloadType" class="url-input">
+                    <option value="youtube">YouTube Video</option>
+                    <option value="playlist">YouTube Playlist</option>
+                    <option value="facebook">Facebook Video</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="videoUrl" id="urlLabel">YouTube Video URL</label>
                 <input 
                     type="url" 
                     id="videoUrl" 
@@ -222,7 +230,7 @@
 
             <div class="download-section">
                 <button type="submit" class="download-btn" id="downloadBtn">
-                    📹 Download Video
+                    ⬇️ Download
                 </button>
             </div>
         </form>
@@ -597,7 +605,62 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            new YouTubeDownloaderPro();
+            const app = new YouTubeDownloaderPro();
+            // Add logic for download type selection
+            const downloadType = document.getElementById('downloadType');
+            const urlInput = document.getElementById('videoUrl');
+            const urlLabel = document.getElementById('urlLabel');
+            downloadType.addEventListener('change', function() {
+                if (this.value === 'youtube') {
+                    urlLabel.textContent = 'YouTube Video URL';
+                    urlInput.placeholder = 'https://www.youtube.com/watch?v=... or https://youtube.com/shorts/...';
+                } else if (this.value === 'playlist') {
+                    urlLabel.textContent = 'YouTube Playlist URL';
+                    urlInput.placeholder = 'https://www.youtube.com/playlist?list=...';
+                } else if (this.value === 'facebook') {
+                    urlLabel.textContent = 'Facebook Video URL';
+                    urlInput.placeholder = 'https://www.facebook.com/.../videos/...';
+                }
+            });
+            // Patch download logic to use correct endpoint
+            app.getAPIEndpoint = function() {
+                const type = document.getElementById('downloadType').value;
+                if (type === 'youtube') return '/api/download/ytdlp';
+                if (type === 'playlist') return '/api/download/playlist';
+                if (type === 'facebook') return '/api/download/facebook';
+                return '/api/download/ytdlp';
+            };
+            // Patch URL validation for playlist and Facebook
+            app.validateUrl = function(url) {
+                if (!url) return false;
+                const type = document.getElementById('downloadType').value;
+                let isValid = false;
+                if (type === 'youtube') {
+                    const youtubePatterns = [
+                        /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
+                        /^(https?:\/\/)?(www\.)?(youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+                        /^(https?:\/\/)?(youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+                        /^(https?:\/\/)?(www\.)?(youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+                    ];
+                    isValid = youtubePatterns.some(pattern => pattern.test(url));
+                } else if (type === 'playlist') {
+                    isValid = /^(https?:\/\/)?(www\.)?(youtube\.com\/playlist\?list=)[a-zA-Z0-9_-]+/.test(url);
+                } else if (type === 'facebook') {
+                    isValid = /^(https?:\/\/)?(www\.)?facebook\.com\/.+\/videos\/.+/.test(url);
+                }
+                const input = document.getElementById('videoUrl');
+                if (!isValid) {
+                    input.style.borderColor = '#e74c3c';
+                    this.showError('Please enter a valid URL for the selected type');
+                    return false;
+                } else {
+                    input.style.borderColor = '#28a745';
+                    this.hideError();
+                    // Only fetch video info for single YouTube videos
+                    if (type === 'youtube') this.fetchVideoInfo(url);
+                    return true;
+                }
+            };
         });
     </script>
 </body>
